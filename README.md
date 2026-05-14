@@ -100,7 +100,7 @@ Invoke-WebRequest -Uri $url -OutFile $tmp -UseBasicParsing
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File $tmp
 ```
 
-**Cách D — Một dòng `irm … | iex`** (chỉ với nguồn bạn tin và đã đối chiếu). `iex` chạy luôn nội dung tải về — **không** nên dán kiểu này từ site kích hoạt/crack lạ; repo này chỉ khuyến nghị URL raw GitHub dưới đây:
+**Cách D — Một dòng `irm … | iex`** (chỉ với nguồn bạn tin và đã đối chiếu). `iex` chạy luôn nội dung tải về:
 
 ```powershell
 irm https://raw.githubusercontent.com/ZakShinn/Win-Key-Remover/main/Win-Key-Remover.ps1 | iex
@@ -259,7 +259,7 @@ Invoke-WebRequest -Uri $url -OutFile $tmp -UseBasicParsing
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File $tmp
 ```
 
-**Option D — One-liner `irm … | iex`** (trusted sources only). `Invoke-Expression` runs downloaded code immediately — **do not** paste this pattern from random “activation” sites. For this project, only the official raw URL below is documented:
+**Option D — One-liner `irm … | iex`** (trusted sources only). `Invoke-Expression` runs downloaded code immediately:
 
 ```powershell
 irm https://raw.githubusercontent.com/ZakShinn/Win-Key-Remover/main/Win-Key-Remover.ps1 | iex

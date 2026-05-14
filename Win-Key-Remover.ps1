@@ -6,7 +6,7 @@
   Language: Vietnamese or English. Menu: Windows only, Office only, or both.
   Optional: download latest copy from a GitHub RAW URL you set, then continue.
 .PARAMETER Lang
-  vi | en. If omitted, you are prompted at startup.
+  vi | en. If omitted, you are prompted at startup. (Parameter name is -Lang; avoids clashing with session variable $Lang when using Invoke-Expression.)
 .EXAMPLE
   .\Win-Key-Remover.ps1
 .EXAMPLE
@@ -17,7 +17,8 @@
 param(
     [Parameter()]
     [ValidateSet('vi', 'en')]
-    [string]$Lang
+    [Alias('Lang')]
+    [string]$WkrUiLanguage
 )
 
 $ErrorActionPreference = 'Stop'
@@ -129,8 +130,8 @@ function Invoke-OptionalRemoteUpdate {
     }
 
     Write-Host ($S.SavedRun -f $out) -ForegroundColor Green
-    if ($Lang) {
-        & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $out -Lang $Lang
+    if ($WkrUiLanguage) {
+        & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $out -Lang $WkrUiLanguage
     }
     else {
         & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $out
@@ -218,12 +219,12 @@ function Clear-OfficeKeys {
 }
 
 # --- Resolve language ---
-if (-not $Lang) {
+if (-not $WkrUiLanguage) {
     Write-Host (Get-Strings -Culture 'vi').ChooseLang -ForegroundColor White
     $lc = Read-Host '1 / 2'
     switch ($lc) {
-        '1' { $Lang = 'vi' }
-        '2' { $Lang = 'en' }
+        '1' { $WkrUiLanguage = 'vi' }
+        '2' { $WkrUiLanguage = 'en' }
         default {
             Write-Host 'Invalid choice / Lua chon khong hop le.' -ForegroundColor Red
             exit 1
@@ -231,7 +232,7 @@ if (-not $Lang) {
     }
 }
 
-$S = Get-Strings -Culture $Lang
+$S = Get-Strings -Culture $WkrUiLanguage
 
 Invoke-OptionalRemoteUpdate -S $S
 

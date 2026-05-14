@@ -11,6 +11,9 @@
   .\Win-Key-Remover.ps1
 .EXAMPLE
   .\Win-Key-Remover.ps1 -Lang en
+.NOTES
+  From the folder that contains this file, run .\Win-Key-Remover.ps1 (leading .\ is required).
+  Typing only Win-Key-Remover.ps1 causes "not recognized" — by design in PowerShell.
 #>
 
 [CmdletBinding()]

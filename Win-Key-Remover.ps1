@@ -18,8 +18,31 @@
 $ErrorActionPreference = 'Stop'
 
 $script:WkrRawUrl = 'https://raw.githubusercontent.com/ZakShinn/Win-Key-Remover/main/Win-Key-Remover.ps1'
+
+# Legacy names from older builds (param + ValidateSet) break irm | iex if touched in this session
+foreach ($legacyScope in @('Global', 'Script', 'Local')) {
+    foreach ($legacyName in @('WkrUiLanguage', 'Lang')) {
+        Remove-Variable -Name $legacyName -Scope $legacyScope -ErrorAction SilentlyContinue
+    }
+}
+
+# irm | iex: run FIRST — before any other script logic or culture variables
+if (-not $PSScriptRoot) {
+    $dest = Join-Path $env:TEMP 'Win-Key-Remover.ps1'
+    try {
+        (New-Object System.Net.WebClient).DownloadFile($script:WkrRawUrl, $dest)
+    }
+    catch {
+        Write-Host "Download failed / Loi tai file: $($_.Exception.Message)" -ForegroundColor Red
+        exit 1
+    }
+    $ps51 = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
+    if (-not (Test-Path -LiteralPath $ps51)) { $ps51 = 'powershell.exe' }
+    & $ps51 -NoProfile -ExecutionPolicy Bypass -File $dest -WkrSkipUpdate
+    exit $LASTEXITCODE
+}
+
 $RemoteScriptUrl = $script:WkrRawUrl
-$script:WkrUiLanguage = $null
 
 function Get-WkrWindowsPowerShellExe {
     $ps51 = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
@@ -127,24 +150,6 @@ function Test-WkrScriptSyntax {
     catch {
         return $false
     }
-}
-
-# irm | iex: no $PSScriptRoot — download and run in a new powershell.exe -File (clean scope, no param clash)
-if (-not $PSScriptRoot) {
-    $dest = Join-Path $env:TEMP 'Win-Key-Remover.ps1'
-    try {
-        Invoke-WkrWebDownload -Uri $script:WkrRawUrl -Destination $dest
-    }
-    catch {
-        Write-Host "Download failed / Loi tai file: $($_.Exception.Message)" -ForegroundColor Red
-        exit 1
-    }
-    if (-not (Test-WkrScriptSyntax -Path $dest)) {
-        Write-Host 'Downloaded script has syntax errors. Update Win-Key-Remover on GitHub or run from a local copy.' -ForegroundColor Red
-        exit 1
-    }
-    $langArg = Get-WkrCliLanguageFromArgs
-    Start-WkrInWindowsPowerShell -ScriptPath $dest -LangArg $langArg -SkipRemoteUpdate
 }
 
 if (-not (Test-WkrIsAdministrator)) {
@@ -298,7 +303,7 @@ function Invoke-OptionalRemoteUpdate {
     }
 
     Write-Host ($S.SavedRun -f $out) -ForegroundColor Green
-    Start-WkrInWindowsPowerShell -ScriptPath $out -LangArg $script:WkrUiLanguage -SkipRemoteUpdate
+    Start-WkrInWindowsPowerShell -ScriptPath $out -LangArg $script:WkrCulture -SkipRemoteUpdate
 }
 
 function Show-Disclaimer {
@@ -408,15 +413,15 @@ if ($langFromCli) {
         Write-Host "Invalid -Lang '$langFromCli'. Use vi or en. / -Lang khong hop le." -ForegroundColor Red
         exit 1
     }
-    $script:WkrUiLanguage = $langFromCli
+    $script:WkrCulture = $langFromCli
 }
 
-if (-not $script:WkrUiLanguage) {
+if (-not $script:WkrCulture) {
     Write-Host (Get-Strings -Culture 'vi').ChooseLang -ForegroundColor White
     $lc = Read-Host '1 / 2'
     switch ($lc) {
-        '1' { $script:WkrUiLanguage = 'vi' }
-        '2' { $script:WkrUiLanguage = 'en' }
+        '1' { $script:WkrCulture = 'vi' }
+        '2' { $script:WkrCulture = 'en' }
         default {
             Write-Host 'Invalid choice / Lua chon khong hop le.' -ForegroundColor Red
             exit 1
@@ -424,7 +429,7 @@ if (-not $script:WkrUiLanguage) {
     }
 }
 
-$S = Get-Strings -Culture $script:WkrUiLanguage
+$S = Get-Strings -Culture $script:WkrCulture
 $psExe = Get-WkrWindowsPowerShellExe
 Write-Host ($S.PsHostNote -f $psExe, $PSVersionTable.PSVersion) -ForegroundColor DarkGray
 

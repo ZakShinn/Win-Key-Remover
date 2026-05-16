@@ -133,18 +133,19 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File $tmp
 powershell -NoProfile -ExecutionPolicy Bypass -Command "$u='https://raw.githubusercontent.com/ZakShinn/Win-Key-Remover/main/Win-Key-Remover.ps1'; $p=Join-Path $env:TEMP 'Win-Key-Remover.ps1'; (New-Object Net.WebClient).DownloadFile($u,$p); & \"$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe\" -NoProfile -ExecutionPolicy Bypass -File $p"
 ```
 
-**Cách E — `irm | iex`** (cần **PowerShell Admin**; bản mới không dùng `param` để tránh lỗi biến `$Lang` / `$WkrUiLanguage` trong session):
+**Cách E — `irm | iex`** (cần **PowerShell Admin**). Khuyến nghị dùng **`Install.ps1`** (file nhỏ, không đụng biến cũ trong session):
+
+```powershell
+irm https://raw.githubusercontent.com/ZakShinn/Win-Key-Remover/main/Install.ps1 | iex
+```
+
+Hoặc script chính (bản mới nhất trên GitHub):
 
 ```powershell
 irm https://raw.githubusercontent.com/ZakShinn/Win-Key-Remover/main/Win-Key-Remover.ps1 | iex
 ```
 
-Nếu vẫn lỗi `WkrUiLanguage` / `Lang`: đóng cửa sổ PowerShell, mở **cửa sổ Admin mới**, hoặc chạy:
-
-```powershell
-Remove-Variable Lang, WkrUiLanguage -Scope Global -ErrorAction SilentlyContinue
-irm https://raw.githubusercontent.com/ZakShinn/Win-Key-Remover/main/Win-Key-Remover.ps1 | iex
-```
+Nếu vẫn lỗi `WkrUiLanguage` / `Lang`: **đóng hết cửa sổ PowerShell**, mở **Admin mới**, hoặc dùng `Install.ps1` / `.\Win-Key-Remover.ps1` thay `iex`.
 
 Cố định ngôn ngữ: dùng cách A/B/C/D với `-Lang vi` hoặc `-Lang en`.
 
@@ -340,13 +341,19 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File $tmp
 powershell -NoProfile -ExecutionPolicy Bypass -Command "$u='https://raw.githubusercontent.com/ZakShinn/Win-Key-Remover/main/Win-Key-Remover.ps1'; $p=Join-Path $env:TEMP 'Win-Key-Remover.ps1'; (New-Object Net.WebClient).DownloadFile($u,$p); & \"$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe\" -NoProfile -ExecutionPolicy Bypass -File $p"
 ```
 
-**Option E — `irm | iex`** (requires **elevated PowerShell**; current script avoids `param` blocks for `iex` safety):
+**Option E — `irm | iex`** (requires **elevated PowerShell**). Prefer **`Install.ps1`** (tiny launcher, no session variable clashes):
+
+```powershell
+irm https://raw.githubusercontent.com/ZakShinn/Win-Key-Remover/main/Install.ps1 | iex
+```
+
+Or the main script:
 
 ```powershell
 irm https://raw.githubusercontent.com/ZakShinn/Win-Key-Remover/main/Win-Key-Remover.ps1 | iex
 ```
 
-If you still see `WkrUiLanguage` / `Lang` errors: close PowerShell, open a **new Admin** window, or run `Remove-Variable Lang, WkrUiLanguage -Scope Global -ErrorAction SilentlyContinue` first.
+If you still see `WkrUiLanguage` / `Lang` errors: close all PowerShell windows, open a **new Admin** session, or use `Install.ps1` / `.\Win-Key-Remover.ps1` instead of `iex`.
 
 Use A/B/C/D with `-Lang vi` or `-Lang en` to fix the UI language.
 

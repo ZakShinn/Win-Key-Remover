@@ -10,22 +10,16 @@
 .EXAMPLE
   .\Win-Key-Remover.ps1 -Lang en
 .NOTES
-  Run from the script folder: .\Win-Key-Remover.ps1
-  Recommended host: Windows PowerShell 5.1 (powershell.exe), Administrator.
+  Run: .\Win-Key-Remover.ps1  or  .\Win-Key-Remover.ps1 -Lang en
+  irm | iex: opens a child powershell.exe -File (Admin required).
+  Recommended: Windows PowerShell 5.1 (powershell.exe), Administrator.
 #>
-
-[CmdletBinding()]
-param(
-    [Parameter()]
-    [ValidateSet('vi', 'en')]
-    [Alias('Lang')]
-    [string]$WkrUiLanguage
-)
 
 $ErrorActionPreference = 'Stop'
 
 $script:WkrRawUrl = 'https://raw.githubusercontent.com/ZakShinn/Win-Key-Remover/main/Win-Key-Remover.ps1'
 $RemoteScriptUrl = $script:WkrRawUrl
+$script:WkrUiLanguage = $null
 
 function Get-WkrWindowsPowerShellExe {
     $ps51 = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
@@ -78,7 +72,30 @@ function Start-WkrInWindowsPowerShell {
     exit $LASTEXITCODE
 }
 
-# irm | iex runs without a script path — re-launch as a file in Windows PowerShell 5.1
+function Get-WkrCliLanguageFromArgs {
+    for ($i = 0; $i -lt $args.Count; $i++) {
+        $token = [string]$args[$i]
+        if ($token -in @('-Lang', '/Lang') -and ($i + 1) -lt $args.Count) {
+            return [string]$args[$i + 1]
+        }
+    }
+    return $null
+}
+
+function Test-WkrScriptSyntax {
+    param([Parameter(Mandatory)][string]$Path)
+    if (-not (Test-Path -LiteralPath $Path)) { return $false }
+    try {
+        $parseErr = $null
+        [void][System.Management.Automation.Language.Parser]::ParseFile($Path, [ref]$null, [ref]$parseErr)
+        return (-not $parseErr -or $parseErr.Count -eq 0)
+    }
+    catch {
+        return $false
+    }
+}
+
+# irm | iex: no $PSScriptRoot — download and run in a new powershell.exe -File (clean scope, no param clash)
 if (-not $PSScriptRoot) {
     $dest = Join-Path $env:TEMP 'Win-Key-Remover.ps1'
     try {
@@ -92,7 +109,8 @@ if (-not $PSScriptRoot) {
         Write-Host 'Downloaded script has syntax errors. Update Win-Key-Remover on GitHub or run from a local copy.' -ForegroundColor Red
         exit 1
     }
-    Start-WkrInWindowsPowerShell -ScriptPath $dest -LangArg $WkrUiLanguage
+    $langArg = Get-WkrCliLanguageFromArgs
+    Start-WkrInWindowsPowerShell -ScriptPath $dest -LangArg $langArg
 }
 
 if (-not (Test-WkrIsAdministrator)) {
@@ -201,19 +219,6 @@ function Invoke-WkrCscript {
     & $cscript @allArgs 2>&1 | Out-Host
 }
 
-function Test-WkrScriptSyntax {
-    param([Parameter(Mandatory)][string]$Path)
-    if (-not (Test-Path -LiteralPath $Path)) { return $false }
-    try {
-        $parseErr = $null
-        [void][System.Management.Automation.Language.Parser]::ParseFile($Path, [ref]$null, [ref]$parseErr)
-        return (-not $parseErr -or $parseErr.Count -eq 0)
-    }
-    catch {
-        return $false
-    }
-}
-
 function Invoke-OptionalRemoteUpdate {
     param([hashtable]$S)
 
@@ -252,7 +257,7 @@ function Invoke-OptionalRemoteUpdate {
     }
 
     Write-Host ($S.SavedRun -f $out) -ForegroundColor Green
-    Start-WkrInWindowsPowerShell -ScriptPath $out -LangArg $WkrUiLanguage
+    Start-WkrInWindowsPowerShell -ScriptPath $out -LangArg $script:WkrUiLanguage
 }
 
 function Show-Disclaimer {
@@ -351,17 +356,26 @@ function Clear-OfficeKeys {
 if ($PSVersionTable.PSEdition -eq 'Core') {
     $self = $MyInvocation.MyCommand.Path
     if ($self -and (Test-Path -LiteralPath $self)) {
-        Start-WkrInWindowsPowerShell -ScriptPath $self -LangArg $WkrUiLanguage
+        Start-WkrInWindowsPowerShell -ScriptPath $self -LangArg (Get-WkrCliLanguageFromArgs)
     }
 }
 
-# --- Resolve language ---
-if (-not $WkrUiLanguage) {
+# --- Resolve language (no param block: safe for irm | iex) ---
+$langFromCli = Get-WkrCliLanguageFromArgs
+if ($langFromCli) {
+    if ($langFromCli -notin @('vi', 'en')) {
+        Write-Host "Invalid -Lang '$langFromCli'. Use vi or en. / -Lang khong hop le." -ForegroundColor Red
+        exit 1
+    }
+    $script:WkrUiLanguage = $langFromCli
+}
+
+if (-not $script:WkrUiLanguage) {
     Write-Host (Get-Strings -Culture 'vi').ChooseLang -ForegroundColor White
     $lc = Read-Host '1 / 2'
     switch ($lc) {
-        '1' { $WkrUiLanguage = 'vi' }
-        '2' { $WkrUiLanguage = 'en' }
+        '1' { $script:WkrUiLanguage = 'vi' }
+        '2' { $script:WkrUiLanguage = 'en' }
         default {
             Write-Host 'Invalid choice / Lua chon khong hop le.' -ForegroundColor Red
             exit 1
@@ -369,7 +383,7 @@ if (-not $WkrUiLanguage) {
     }
 }
 
-$S = Get-Strings -Culture $WkrUiLanguage
+$S = Get-Strings -Culture $script:WkrUiLanguage
 $psExe = Get-WkrWindowsPowerShellExe
 Write-Host ($S.PsHostNote -f $psExe, $PSVersionTable.PSVersion) -ForegroundColor DarkGray
 

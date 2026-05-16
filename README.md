@@ -133,9 +133,16 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File $tmp
 powershell -NoProfile -ExecutionPolicy Bypass -Command "$u='https://raw.githubusercontent.com/ZakShinn/Win-Key-Remover/main/Win-Key-Remover.ps1'; $p=Join-Path $env:TEMP 'Win-Key-Remover.ps1'; (New-Object Net.WebClient).DownloadFile($u,$p); & \"$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe\" -NoProfile -ExecutionPolicy Bypass -File $p"
 ```
 
-**Cách E — `irm | iex`** (vẫn dùng được trên bản script mới): script tự tải lại file vào `%TEMP%` rồi chạy bằng Windows PowerShell 5.1 (tránh lỗi biến `$Lang` / khác phiên bản):
+**Cách E — `irm | iex`** (cần **PowerShell Admin**; bản mới không dùng `param` để tránh lỗi biến `$Lang` / `$WkrUiLanguage` trong session):
 
 ```powershell
+irm https://raw.githubusercontent.com/ZakShinn/Win-Key-Remover/main/Win-Key-Remover.ps1 | iex
+```
+
+Nếu vẫn lỗi `WkrUiLanguage` / `Lang`: đóng cửa sổ PowerShell, mở **cửa sổ Admin mới**, hoặc chạy:
+
+```powershell
+Remove-Variable Lang, WkrUiLanguage -Scope Global -ErrorAction SilentlyContinue
 irm https://raw.githubusercontent.com/ZakShinn/Win-Key-Remover/main/Win-Key-Remover.ps1 | iex
 ```
 
@@ -186,7 +193,7 @@ Khi chạy, script có thể hỏi có muốn tải bản mới từ GitHub trư
 
 - **`The term 'Win-Key-Remover.ps1' is not recognized`** — Thiếu tiền tố **`.\`**. Chạy **`.\Win-Key-Remover.ps1`** hoặc xem [Bước 4](#vi-4).
 - **`ScriptRequiresElevation` / không đủ quyền** — Mở **PowerShell (Admin)** hoặc dùng **`Run-Win-Key-Remover.cmd`**.
-- **Lỗi `variable Lang` khi `irm | iex`** — Cập nhật script mới trên GitHub (bản mới tự tải file rồi chạy), hoặc dùng [Cách D](#vi-4) thay `iex`.
+- **Lỗi `variable Lang` / `WkrUiLanguage` khi `irm | iex`** — Cần bản script mới nhất trên GitHub (không còn `param` + `ValidateSet`). Đóng PowerShell cũ, mở **Admin mới**, hoặc `Remove-Variable Lang, WkrUiLanguage -Scope Global -EA 0` rồi thử lại. Hoặc dùng [Cách D](#vi-4).
 - **PowerShell 7 (`pwsh`) lỗi lạ** — Script tự chuyển sang **5.1**; hoặc mở **Windows PowerShell** (không phải `pwsh`) rồi chạy lại.
 - **Vẫn lỗi sau khi sửa local** — Đảm bảo đã **push GitHub** và chạy lại lệnh tải từ raw (không dùng file `.ps1` cũ trên ổ `D:\`).
 
@@ -333,11 +340,13 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File $tmp
 powershell -NoProfile -ExecutionPolicy Bypass -Command "$u='https://raw.githubusercontent.com/ZakShinn/Win-Key-Remover/main/Win-Key-Remover.ps1'; $p=Join-Path $env:TEMP 'Win-Key-Remover.ps1'; (New-Object Net.WebClient).DownloadFile($u,$p); & \"$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe\" -NoProfile -ExecutionPolicy Bypass -File $p"
 ```
 
-**Option E — `irm | iex`** (supported on current script): re-downloads to `%TEMP%` and runs via Windows PowerShell 5.1:
+**Option E — `irm | iex`** (requires **elevated PowerShell**; current script avoids `param` blocks for `iex` safety):
 
 ```powershell
 irm https://raw.githubusercontent.com/ZakShinn/Win-Key-Remover/main/Win-Key-Remover.ps1 | iex
 ```
+
+If you still see `WkrUiLanguage` / `Lang` errors: close PowerShell, open a **new Admin** window, or run `Remove-Variable Lang, WkrUiLanguage -Scope Global -ErrorAction SilentlyContinue` first.
 
 Use A/B/C/D with `-Lang vi` or `-Lang en` to fix the UI language.
 

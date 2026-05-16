@@ -39,7 +39,9 @@ Script PowerShell dùng công cụ chính thức của Microsoft (`slmgr.vbs`, `
 
 1. Máy chạy **Windows** và có **PowerShell**.
 2. Bạn phải mở **PowerShell (hoặc Windows Terminal) với quyền Administrator** — trong script có `#Requires -RunAsAdministrator`, không đủ quyền sẽ không chạy.
-3. Nếu cần gỡ key **Office**, máy phải đã cài Office để script tìm được `ospp.vbs`.
+3. **Khuyến nghị:** **Windows PowerShell 5.1** (`powershell.exe`). Nếu bạn dùng **PowerShell 7** (`pwsh`), script sẽ **tự chuyển** sang `powershell.exe` 5.1.
+4. Nếu cần gỡ key **Office**, máy phải đã cài Office để script tìm được `ospp.vbs`.
+5. **Không cần `cd`:** có thể double-click file **`Run-Win-Key-Remover.cmd`** (cạnh `Win-Key-Remover.ps1`) để mở cửa sổ Admin và chạy script.
 
 <a id="vi-2"></a>
 
@@ -103,13 +105,19 @@ Invoke-WebRequest -Uri $url -OutFile $tmp -UseBasicParsing
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File $tmp
 ```
 
-**Cách D — Một dòng `irm … | iex`** (chỉ với nguồn bạn tin và đã đối chiếu). `iex` chạy luôn nội dung tải về:
+**Cách D — Một dòng tải và chạy (khuyến nghị thay `irm | iex`):**
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$u='https://raw.githubusercontent.com/ZakShinn/Win-Key-Remover/main/Win-Key-Remover.ps1'; $p=Join-Path $env:TEMP 'Win-Key-Remover.ps1'; (New-Object Net.WebClient).DownloadFile($u,$p); & \"$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe\" -NoProfile -ExecutionPolicy Bypass -File $p"
+```
+
+**Cách E — `irm | iex`** (vẫn dùng được trên bản script mới): script tự tải lại file vào `%TEMP%` rồi chạy bằng Windows PowerShell 5.1 (tránh lỗi biến `$Lang` / khác phiên bản):
 
 ```powershell
 irm https://raw.githubusercontent.com/ZakShinn/Win-Key-Remover/main/Win-Key-Remover.ps1 | iex
 ```
 
-Với cách D, truyền `-Lang` khó hơn; nếu cần cố định ngôn ngữ hoặc đọc file trước, dùng cách A, B hoặc C.
+Cố định ngôn ngữ: dùng cách A/B/C/D với `-Lang vi` hoặc `-Lang en`.
 
 <a id="vi-5"></a>
 
@@ -148,15 +156,17 @@ Ví dụ (đường dẫn tùy máy bạn):
 
 ### Bước 7. Tùy chọn: cập nhật từ GitHub trong file script
 
-Trong `Win-Key-Remover.ps1`, biến `$RemoteScriptUrl` mặc định là placeholder. Nếu bạn sửa thành URL raw của repo, lần chạy sau script có thể hỏi có muốn tải bản mới trước khi tiếp tục:
-
-`https://raw.githubusercontent.com/ZakShinn/Win-Key-Remover/main/Win-Key-Remover.ps1`
+Khi chạy, script có thể hỏi có muốn tải bản mới từ GitHub trước khi tiếp tục (URL mặc định trỏ repo này).
 
 <a id="vi-faq"></a>
 
 ### Sự cố thường gặp
 
-- **`The term 'Win-Key-Remover.ps1' is not recognized`** — Bạn đã `cd` vào đúng thư mục có file nhưng gõ thiếu tiền tố **`.\`**. Chạy: **`.\Win-Key-Remover.ps1`**, hoặc dùng đường dẫn đầy đủ / `-File` như [Bước 4](#vi-4).
+- **`The term 'Win-Key-Remover.ps1' is not recognized`** — Thiếu tiền tố **`.\`**. Chạy **`.\Win-Key-Remover.ps1`** hoặc xem [Bước 4](#vi-4).
+- **`ScriptRequiresElevation` / không đủ quyền** — Mở **PowerShell (Admin)** hoặc dùng **`Run-Win-Key-Remover.cmd`**.
+- **Lỗi `variable Lang` khi `irm | iex`** — Cập nhật script mới trên GitHub (bản mới tự tải file rồi chạy), hoặc dùng [Cách D](#vi-4) thay `iex`.
+- **PowerShell 7 (`pwsh`) lỗi lạ** — Script tự chuyển sang **5.1**; hoặc mở **Windows PowerShell** (không phải `pwsh`) rồi chạy lại.
+- **Vẫn lỗi sau khi sửa local** — Đảm bảo đã **push GitHub** và chạy lại lệnh tải từ raw (không dùng file `.ps1` cũ trên ổ `D:\`).
 
 <a id="vi-notes"></a>
 
@@ -207,7 +217,9 @@ PowerShell script that uses Microsoft’s official tools (`slmgr.vbs`, `ospp.vbs
 
 1. **Windows** with **PowerShell** available.
 2. Start **PowerShell** (or Windows Terminal) **as Administrator** — the script contains `#Requires -RunAsAdministrator`.
-3. For **Office** key removal, Office must be installed so `ospp.vbs` can be located.
+3. **Recommended:** **Windows PowerShell 5.1** (`powershell.exe`). On **PowerShell 7** (`pwsh`), the script **re-launches** in 5.1 automatically.
+4. For **Office** key removal, Office must be installed so `ospp.vbs` can be located.
+5. **No `cd` needed:** double-click **`Run-Win-Key-Remover.cmd`** next to the `.ps1` file to elevate and run.
 
 <a id="en-2"></a>
 
@@ -271,13 +283,19 @@ Invoke-WebRequest -Uri $url -OutFile $tmp -UseBasicParsing
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File $tmp
 ```
 
-**Option D — One-liner `irm … | iex`** (trusted sources only). `Invoke-Expression` runs downloaded code immediately:
+**Option D — One-liner download + run (preferred over `irm | iex`):**
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$u='https://raw.githubusercontent.com/ZakShinn/Win-Key-Remover/main/Win-Key-Remover.ps1'; $p=Join-Path $env:TEMP 'Win-Key-Remover.ps1'; (New-Object Net.WebClient).DownloadFile($u,$p); & \"$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe\" -NoProfile -ExecutionPolicy Bypass -File $p"
+```
+
+**Option E — `irm | iex`** (supported on current script): re-downloads to `%TEMP%` and runs via Windows PowerShell 5.1:
 
 ```powershell
 irm https://raw.githubusercontent.com/ZakShinn/Win-Key-Remover/main/Win-Key-Remover.ps1 | iex
 ```
 
-Passing `-Lang` is awkward with option D; use A, B, or C if you need a fixed language or want to inspect the file first.
+Use A/B/C/D with `-Lang vi` or `-Lang en` to fix the UI language.
 
 <a id="en-5"></a>
 
@@ -316,15 +334,17 @@ Examples:
 
 ### Step 7. Optional: self-update inside the script
 
-In `Win-Key-Remover.ps1`, `$RemoteScriptUrl` is a placeholder by default. If you set it to this repository’s raw URL, the script may offer to download the newest copy before continuing:
-
-`https://raw.githubusercontent.com/ZakShinn/Win-Key-Remover/main/Win-Key-Remover.ps1`
+The script may ask to download the newest copy from GitHub before continuing (default URL points to this repo).
 
 <a id="en-faq"></a>
 
 ### Troubleshooting
 
-- **`The term 'Win-Key-Remover.ps1' is not recognized`** — You are in the correct folder but omitted the **`.\` prefix**. Run **`.\Win-Key-Remover.ps1`**, or use a full path / `-File` as in [Step 4](#en-4).
+- **`The term 'Win-Key-Remover.ps1' is not recognized`** — Omit the **`.\` prefix**. Run **`.\Win-Key-Remover.ps1`** or see [Step 4](#en-4).
+- **`ScriptRequiresElevation`** — Open **PowerShell as Administrator** or use **`Run-Win-Key-Remover.cmd`**.
+- **`variable Lang` with `irm | iex`** — Pull the latest script (new builds bootstrap via a temp file), or use [Option D](#en-4) instead of `iex`.
+- **Weird errors on PowerShell 7** — The script switches to **5.1** automatically; or run **Windows PowerShell** (not `pwsh`) manually.
+- **Still failing** — Make sure changes are **pushed to GitHub** and you are not running an old copy from disk.
 
 <a id="en-notes"></a>
 

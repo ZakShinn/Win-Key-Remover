@@ -1,19 +1,17 @@
+#Requires -Version 5.1
 #Requires -RunAsAdministrator
 <#
 .SYNOPSIS
   Remove Windows/Office keys via slmgr.vbs and ospp.vbs (Microsoft tools).
-.DESCRIPTION
-  Language: Vietnamese or English. Menu: Windows only, Office only, or both.
-  Optional: download latest copy from a GitHub RAW URL you set, then continue.
 .PARAMETER Lang
-  vi | en. If omitted, you are prompted at startup. (Parameter name is -Lang; avoids clashing with session variable $Lang when using Invoke-Expression.)
+  vi | en. If omitted, you are prompted at startup.
 .EXAMPLE
   .\Win-Key-Remover.ps1
 .EXAMPLE
   .\Win-Key-Remover.ps1 -Lang en
 .NOTES
-  From the folder that contains this file, run .\Win-Key-Remover.ps1 (leading .\ is required).
-  Typing only Win-Key-Remover.ps1 causes "not recognized" — by design in PowerShell.
+  Run from the script folder: .\Win-Key-Remover.ps1
+  Recommended host: Windows PowerShell 5.1 (powershell.exe), Administrator.
 #>
 
 [CmdletBinding()]
@@ -26,8 +24,77 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-# === Optional: set to your GitHub RAW URL for this same script; leave placeholder to skip download prompt ===
-$RemoteScriptUrl = 'https://raw.githubusercontent.com/YOUR_USER/YOUR_REPO/main/Win-Key-Remover.ps1'
+$script:WkrRawUrl = 'https://raw.githubusercontent.com/ZakShinn/Win-Key-Remover/main/Win-Key-Remover.ps1'
+$RemoteScriptUrl = $script:WkrRawUrl
+
+function Get-WkrWindowsPowerShellExe {
+    $ps51 = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
+    if (Test-Path -LiteralPath $ps51) { return $ps51 }
+    return 'powershell.exe'
+}
+
+function Test-WkrIsAdministrator {
+    $id = [Security.Principal.WindowsIdentity]::GetCurrent()
+    $p = New-Object Security.Principal.WindowsPrincipal($id)
+    return $p.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+}
+
+function Invoke-WkrWebDownload {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Uri,
+        [Parameter(Mandatory)]
+        [string]$Destination
+    )
+    $dir = Split-Path -Parent $Destination
+    if ($dir -and -not (Test-Path -LiteralPath $dir)) {
+        New-Item -ItemType Directory -Path $dir -Force | Out-Null
+    }
+    if ($PSVersionTable.PSVersion.Major -ge 6) {
+        Invoke-WebRequest -Uri $Uri -OutFile $Destination -UseBasicParsing
+        return
+    }
+    try {
+        Invoke-WebRequest -Uri $Uri -OutFile $Destination -UseBasicParsing
+    }
+    catch {
+        (New-Object System.Net.WebClient).DownloadFile($Uri, $Destination)
+    }
+}
+
+function Start-WkrInWindowsPowerShell {
+    param([string]$ScriptPath, [string]$LangArg)
+    $psExe = Get-WkrWindowsPowerShellExe
+    $args = @(
+        '-NoProfile',
+        '-ExecutionPolicy', 'Bypass',
+        '-File', $ScriptPath
+    )
+    if ($LangArg) {
+        $args += '-Lang'
+        $args += $LangArg
+    }
+    & $psExe @args
+    exit $LASTEXITCODE
+}
+
+# irm | iex runs without a script path — re-launch as a file in Windows PowerShell 5.1
+if (-not $PSScriptRoot) {
+    $dest = Join-Path $env:TEMP 'Win-Key-Remover.ps1'
+    try {
+        Invoke-WkrWebDownload -Uri $script:WkrRawUrl -Destination $dest
+    }
+    catch {
+        Write-Host "Download failed / Loi tai file: $($_.Exception.Message)" -ForegroundColor Red
+        exit 1
+    }
+    Start-WkrInWindowsPowerShell -ScriptPath $dest -LangArg $WkrUiLanguage
+}
+
+if (-not (Test-WkrIsAdministrator)) {
+    Write-Host 'Run PowerShell as Administrator / Can chay PowerShell (Admin).' -ForegroundColor Red
+    exit 1
+}
 
 function Get-Strings {
     param([string]$Culture)
@@ -66,6 +133,7 @@ function Get-Strings {
             DownloadFail    = 'Download failed: {0}'
             DownloadNoFile  = 'Download did not produce a file.'
             SavedRun        = 'Saved: {0} — continuing with downloaded copy...'
+            PsHostNote      = '[Info] Using: {0} (PS {1})'
         }
     }
     return @{
@@ -102,7 +170,23 @@ function Get-Strings {
         DownloadFail    = 'Loi tai file: {0}'
         DownloadNoFile  = 'Tai file that bai.'
         SavedRun        = 'Da luu: {0} — tiep tuc voi ban da tai...'
+        PsHostNote      = '[Info] Dang dung: {0} (PS {1})'
     }
+}
+
+function Invoke-WkrCscript {
+    param(
+        [Parameter(Mandatory)]
+        [string]$ScriptPath,
+        [Parameter(Mandatory)]
+        [string[]]$Arguments
+    )
+    $cscript = Join-Path $env:SystemRoot 'System32\cscript.exe'
+    if (-not (Test-Path -LiteralPath $cscript)) {
+        throw "cscript.exe not found at $cscript"
+    }
+    $allArgs = @('//Nologo', $ScriptPath) + $Arguments
+    & $cscript @allArgs 2>&1 | Out-Host
 }
 
 function Invoke-OptionalRemoteUpdate {
@@ -120,7 +204,7 @@ function Invoke-OptionalRemoteUpdate {
     $out = Join-Path $env:TEMP 'Win-Key-Remover-downloaded.ps1'
     Write-Host ($S.Downloading -f $RemoteScriptUrl) -ForegroundColor Cyan
     try {
-        Invoke-WebRequest -Uri $RemoteScriptUrl -OutFile $out -UseBasicParsing
+        Invoke-WkrWebDownload -Uri $RemoteScriptUrl -Destination $out
     }
     catch {
         Write-Host ($S.DownloadFail -f $_.Exception.Message) -ForegroundColor Red
@@ -133,13 +217,7 @@ function Invoke-OptionalRemoteUpdate {
     }
 
     Write-Host ($S.SavedRun -f $out) -ForegroundColor Green
-    if ($WkrUiLanguage) {
-        & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $out -Lang $WkrUiLanguage
-    }
-    else {
-        & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $out
-    }
-    exit $LASTEXITCODE
+    Start-WkrInWindowsPowerShell -ScriptPath $out -LangArg $WkrUiLanguage
 }
 
 function Show-Disclaimer {
@@ -160,9 +238,9 @@ function Clear-WindowsKey {
         throw ($S.WinNotFound -f $slmgr)
     }
 
-    cscript //Nologo $slmgr /upk  | Out-Host
-    cscript //Nologo $slmgr /cpky | Out-Host
-    cscript //Nologo $slmgr /ckms | Out-Host
+    Invoke-WkrCscript -ScriptPath $slmgr -Arguments @('/upk')
+    Invoke-WkrCscript -ScriptPath $slmgr -Arguments @('/cpky')
+    Invoke-WkrCscript -ScriptPath $slmgr -Arguments @('/ckms')
 
     Write-Host $S.WinDone -ForegroundColor Green
 }
@@ -170,17 +248,28 @@ function Clear-WindowsKey {
 function Find-OsppPath {
     $roots = @(
         "${env:ProgramFiles}\Microsoft Office\Office16",
-        "${env:ProgramFiles(x86)}\Microsoft Office\Office16",
-        "${env:ProgramFiles}\Microsoft Office\Office15",
-        "${env:ProgramFiles(x86)}\Microsoft Office\Office15"
+        "${env:ProgramFiles}\Microsoft Office\Office15"
     )
+    if ($env:ProgramFiles(x86)) {
+        $roots += @(
+            "${env:ProgramFiles(x86)}\Microsoft Office\Office16",
+            "${env:ProgramFiles(x86)}\Microsoft Office\Office15"
+        )
+    }
     foreach ($r in $roots) {
+        if (-not $r) { continue }
         $p = Join-Path $r 'ospp.vbs'
         if (Test-Path -LiteralPath $p) { return $p }
     }
-    $found = Get-ChildItem -Path "${env:ProgramFiles}", "${env:ProgramFiles(x86)}" -Filter 'ospp.vbs' -Recurse -ErrorAction SilentlyContinue |
-        Select-Object -First 1 -ExpandProperty FullName
-    return $found
+    $searchRoots = @($env:ProgramFiles)
+    if ($env:ProgramFiles(x86)) { $searchRoots += $env:ProgramFiles(x86) }
+    foreach ($root in $searchRoots) {
+        if (-not $root -or -not (Test-Path -LiteralPath $root)) { continue }
+        $found = Get-ChildItem -LiteralPath $root -Filter 'ospp.vbs' -Recurse -ErrorAction SilentlyContinue |
+            Select-Object -First 1 -ExpandProperty FullName
+        if ($found) { return $found }
+    }
+    return $null
 }
 
 function Clear-OfficeKeys {
@@ -195,7 +284,8 @@ function Clear-OfficeKeys {
 
     $tmp = [System.IO.Path]::GetTempFileName()
     try {
-        cscript //Nologo $ospp /dstatus > $tmp 2>&1
+        $cscript = Join-Path $env:SystemRoot 'System32\cscript.exe'
+        & $cscript //Nologo $ospp /dstatus 2>&1 | Out-File -LiteralPath $tmp -Encoding UTF8
         $text = Get-Content -LiteralPath $tmp -Raw -ErrorAction SilentlyContinue
         if (-not $text) {
             Write-Host $S.OfficeBadOut -ForegroundColor Red
@@ -206,18 +296,27 @@ function Clear-OfficeKeys {
             Write-Host ($S.OfficeNoKeys -f $text) -ForegroundColor Yellow
             return
         }
-        $seen = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+        $seen = @{}
         foreach ($m in $patternMatches) {
             $last5 = $m.Groups[1].Value
-            if ($seen.Add($last5)) {
+            if (-not $seen.ContainsKey($last5)) {
+                $seen[$last5] = $true
                 Write-Host ($S.OfficeRemove -f $last5) -ForegroundColor Cyan
-                cscript //Nologo $ospp /unpkey:$last5 | Out-Host
+                Invoke-WkrCscript -ScriptPath $ospp -Arguments @("/unpkey:$last5")
             }
         }
         Write-Host ($S.OfficeDone -f $ospp) -ForegroundColor Green
     }
     finally {
         Remove-Item -LiteralPath $tmp -Force -ErrorAction SilentlyContinue
+    }
+}
+
+# PowerShell 7+: re-launch in Windows PowerShell 5.1 (slmgr/ospp work best on 5.1)
+if ($PSVersionTable.PSEdition -eq 'Core') {
+    $self = $MyInvocation.MyCommand.Path
+    if ($self -and (Test-Path -LiteralPath $self)) {
+        Start-WkrInWindowsPowerShell -ScriptPath $self -LangArg $WkrUiLanguage
     }
 }
 
@@ -236,6 +335,8 @@ if (-not $WkrUiLanguage) {
 }
 
 $S = Get-Strings -Culture $WkrUiLanguage
+$psExe = Get-WkrWindowsPowerShellExe
+Write-Host ($S.PsHostNote -f $psExe, $PSVersionTable.PSVersion) -ForegroundColor DarkGray
 
 Invoke-OptionalRemoteUpdate -S $S
 

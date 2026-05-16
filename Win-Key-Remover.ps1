@@ -57,19 +57,34 @@ function Invoke-WkrWebDownload {
 }
 
 function Start-WkrInWindowsPowerShell {
-    param([string]$ScriptPath, [string]$LangArg)
+    param(
+        [string]$ScriptPath,
+        [string]$LangArg,
+        [switch]$SkipRemoteUpdate
+    )
     $psExe = Get-WkrWindowsPowerShellExe
-    $args = @(
+    $psArgs = @(
         '-NoProfile',
         '-ExecutionPolicy', 'Bypass',
         '-File', $ScriptPath
     )
     if ($LangArg) {
-        $args += '-Lang'
-        $args += $LangArg
+        $psArgs += '-Lang'
+        $psArgs += $LangArg
     }
-    & $psExe @args
+    if ($SkipRemoteUpdate) {
+        $psArgs += '-WkrSkipUpdate'
+    }
+    & $psExe @psArgs
     exit $LASTEXITCODE
+}
+
+function Test-WkrCliSwitchPresent {
+    param([Parameter(Mandatory)][string]$Name)
+    foreach ($a in $args) {
+        if ([string]$a -eq $Name) { return $true }
+    }
+    return $false
 }
 
 function Get-WkrCliLanguageFromArgs {
@@ -80,6 +95,25 @@ function Get-WkrCliLanguageFromArgs {
         }
     }
     return $null
+}
+
+function Test-WkrShouldSkipRemoteUpdatePrompt {
+    if (Test-WkrCliSwitchPresent -Name '-WkrSkipUpdate') { return $true }
+    if ($env:WKR_SKIP_REMOTE_UPDATE -eq '1') { return $true }
+
+    $path = $PSCommandPath
+    if (-not $path) { $path = $MyInvocation.PSCommandPath }
+    if (-not $path) { return $false }
+
+    $fileName = [System.IO.Path]::GetFileName($path)
+    if ($fileName -notmatch '^Win-Key-Remover(-downloaded)?\.ps1$') { return $false }
+
+    $dir = [System.IO.Path]::GetDirectoryName($path)
+    $tempRoot = [System.IO.Path]::GetTempPath().TrimEnd('\', '/')
+    if ($dir.StartsWith($tempRoot, [StringComparison]::OrdinalIgnoreCase)) {
+        return $true
+    }
+    return $false
 }
 
 function Test-WkrScriptSyntax {
@@ -110,7 +144,7 @@ if (-not $PSScriptRoot) {
         exit 1
     }
     $langArg = Get-WkrCliLanguageFromArgs
-    Start-WkrInWindowsPowerShell -ScriptPath $dest -LangArg $langArg
+    Start-WkrInWindowsPowerShell -ScriptPath $dest -LangArg $langArg -SkipRemoteUpdate
 }
 
 if (-not (Test-WkrIsAdministrator)) {
@@ -161,6 +195,7 @@ function Get-Strings {
             SavedRun        = 'Saved: {0} - continuing with downloaded copy...'
             UpdateBadSyntax = 'Downloaded script has syntax errors (GitHub may be outdated). Continuing with THIS copy.'
             UpdateUseLocal  = 'Using local script: {0}'
+            UpdateSkipped   = 'Skipping update prompt (already running a copy just downloaded from GitHub).'
             PsHostNote      = '[Info] Using: {0} (PS {1})'
         }
     }
@@ -200,6 +235,7 @@ function Get-Strings {
         SavedRun        = 'Da luu: {0} - tiep tuc voi ban da tai...'
         UpdateBadSyntax = 'Ban tai ve loi cu phap (GitHub co the chua cap nhat). Tiep tuc voi ban DANG CHAY.'
         UpdateUseLocal  = 'Dung ban cuc bo: {0}'
+        UpdateSkipped   = 'Bo qua hoi tai ban moi (dang chay ban vua tai tu GitHub).'
         PsHostNote      = '[Info] Dang dung: {0} (PS {1})'
     }
 }
@@ -224,6 +260,11 @@ function Invoke-OptionalRemoteUpdate {
 
     if ($RemoteScriptUrl -match 'YOUR_USER|YOUR_REPO') {
         Write-Host $S.RemoteNotCfg -ForegroundColor DarkYellow
+        return
+    }
+
+    if (Test-WkrShouldSkipRemoteUpdatePrompt) {
+        Write-Host $S.UpdateSkipped -ForegroundColor DarkGray
         return
     }
 
@@ -257,7 +298,7 @@ function Invoke-OptionalRemoteUpdate {
     }
 
     Write-Host ($S.SavedRun -f $out) -ForegroundColor Green
-    Start-WkrInWindowsPowerShell -ScriptPath $out -LangArg $script:WkrUiLanguage
+    Start-WkrInWindowsPowerShell -ScriptPath $out -LangArg $script:WkrUiLanguage -SkipRemoteUpdate
 }
 
 function Show-Disclaimer {

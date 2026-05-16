@@ -185,7 +185,7 @@ Ví dụ (đường dẫn tùy máy bạn):
 
 ### Bước 7. Tùy chọn: cập nhật từ GitHub trong file script
 
-Khi chạy, script có thể hỏi có muốn tải bản mới từ GitHub trước khi tiếp tục. **Nhấn `N` (Enter)** nếu bạn đã có bản `D:\Win-Key-Remover` mới hơn GitHub. Bản script mới **kiểm tra cú pháp** sau khi tải; nếu GitHub chưa được push bản sửa lỗi, sẽ **không** chạy file lỗi mà tiếp tục bản local.
+Khi chạy, script có thể hỏi có muốn tải bản mới từ GitHub trước khi tiếp tục. **Nhấn `N` (Enter)** nếu bạn đã có bản local mới hơn GitHub. Nếu chọn **`y`**, bản tải về chạy **một lần** và **không hỏi lại** (tránh vòng lặp). Bản script **kiểm tra cú pháp** sau khi tải; file lỗi sẽ không được chạy.
 
 <a id="vi-faq"></a>
 
@@ -387,7 +387,7 @@ Examples:
 
 ### Step 7. Optional: self-update inside the script
 
-The script may ask to download the newest copy from GitHub. Press **`N`** if your local copy is already newer. After download, the script **validates syntax**; if GitHub is outdated, it **keeps your local copy** instead of running a broken file.
+The script may ask to download the newest copy from GitHub. Press **`N`** if your local copy is already newer. If you choose **`y`**, the downloaded copy runs **once** and **will not ask again** (no update loop). Downloaded files are **syntax-checked** before run.
 
 <a id="en-faq"></a>
 

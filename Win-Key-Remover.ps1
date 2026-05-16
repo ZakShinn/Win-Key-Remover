@@ -88,12 +88,20 @@ if (-not $PSScriptRoot) {
         Write-Host "Download failed / Loi tai file: $($_.Exception.Message)" -ForegroundColor Red
         exit 1
     }
+    if (-not (Test-WkrScriptSyntax -Path $dest)) {
+        Write-Host 'Downloaded script has syntax errors. Update Win-Key-Remover on GitHub or run from a local copy.' -ForegroundColor Red
+        exit 1
+    }
     Start-WkrInWindowsPowerShell -ScriptPath $dest -LangArg $WkrUiLanguage
 }
 
 if (-not (Test-WkrIsAdministrator)) {
     Write-Host 'Run PowerShell as Administrator / Can chay PowerShell (Admin).' -ForegroundColor Red
     exit 1
+}
+
+if ($PSScriptRoot) {
+    Set-Location -LiteralPath $PSScriptRoot
 }
 
 function Get-Strings {
@@ -132,7 +140,9 @@ function Get-Strings {
             Downloading     = 'Downloading: {0}'
             DownloadFail    = 'Download failed: {0}'
             DownloadNoFile  = 'Download did not produce a file.'
-            SavedRun        = 'Saved: {0} — continuing with downloaded copy...'
+            SavedRun        = 'Saved: {0} - continuing with downloaded copy...'
+            UpdateBadSyntax = 'Downloaded script has syntax errors (GitHub may be outdated). Continuing with THIS copy.'
+            UpdateUseLocal  = 'Using local script: {0}'
             PsHostNote      = '[Info] Using: {0} (PS {1})'
         }
     }
@@ -169,7 +179,9 @@ function Get-Strings {
         Downloading     = 'Dang tai: {0}'
         DownloadFail    = 'Loi tai file: {0}'
         DownloadNoFile  = 'Tai file that bai.'
-        SavedRun        = 'Da luu: {0} — tiep tuc voi ban da tai...'
+        SavedRun        = 'Da luu: {0} - tiep tuc voi ban da tai...'
+        UpdateBadSyntax = 'Ban tai ve loi cu phap (GitHub co the chua cap nhat). Tiep tuc voi ban DANG CHAY.'
+        UpdateUseLocal  = 'Dung ban cuc bo: {0}'
         PsHostNote      = '[Info] Dang dung: {0} (PS {1})'
     }
 }
@@ -187,6 +199,19 @@ function Invoke-WkrCscript {
     }
     $allArgs = @('//Nologo', $ScriptPath) + $Arguments
     & $cscript @allArgs 2>&1 | Out-Host
+}
+
+function Test-WkrScriptSyntax {
+    param([Parameter(Mandatory)][string]$Path)
+    if (-not (Test-Path -LiteralPath $Path)) { return $false }
+    try {
+        $parseErr = $null
+        [void][System.Management.Automation.Language.Parser]::ParseFile($Path, [ref]$null, [ref]$parseErr)
+        return (-not $parseErr -or $parseErr.Count -eq 0)
+    }
+    catch {
+        return $false
+    }
 }
 
 function Invoke-OptionalRemoteUpdate {
@@ -208,12 +233,22 @@ function Invoke-OptionalRemoteUpdate {
     }
     catch {
         Write-Host ($S.DownloadFail -f $_.Exception.Message) -ForegroundColor Red
-        exit 1
+        return
     }
 
     if (-not (Test-Path -LiteralPath $out)) {
         Write-Host $S.DownloadNoFile -ForegroundColor Red
-        exit 1
+        return
+    }
+
+    if (-not (Test-WkrScriptSyntax -Path $out)) {
+        Write-Host $S.UpdateBadSyntax -ForegroundColor Red
+        Remove-Item -LiteralPath $out -Force -ErrorAction SilentlyContinue
+        $localMain = if ($PSScriptRoot) { Join-Path $PSScriptRoot 'Win-Key-Remover.ps1' } else { $MyInvocation.MyCommand.Path }
+        if ($localMain -and (Test-Path -LiteralPath $localMain)) {
+            Write-Host ($S.UpdateUseLocal -f $localMain) -ForegroundColor Yellow
+        }
+        return
     }
 
     Write-Host ($S.SavedRun -f $out) -ForegroundColor Green
@@ -250,7 +285,7 @@ function Find-OsppPath {
         "${env:ProgramFiles}\Microsoft Office\Office16",
         "${env:ProgramFiles}\Microsoft Office\Office15"
     )
-    if ($env:ProgramFiles(x86)) {
+    if (${env:ProgramFiles(x86)}) {
         $roots += @(
             "${env:ProgramFiles(x86)}\Microsoft Office\Office16",
             "${env:ProgramFiles(x86)}\Microsoft Office\Office15"
@@ -262,7 +297,7 @@ function Find-OsppPath {
         if (Test-Path -LiteralPath $p) { return $p }
     }
     $searchRoots = @($env:ProgramFiles)
-    if ($env:ProgramFiles(x86)) { $searchRoots += $env:ProgramFiles(x86) }
+    if (${env:ProgramFiles(x86)}) { $searchRoots += ${env:ProgramFiles(x86)} }
     foreach ($root in $searchRoots) {
         if (-not $root -or -not (Test-Path -LiteralPath $root)) { continue }
         $found = Get-ChildItem -LiteralPath $root -Filter 'ospp.vbs' -Recurse -ErrorAction SilentlyContinue |
@@ -356,4 +391,10 @@ switch ($choice) {
         Write-Host $S.InvalidMode -ForegroundColor Red
         exit 1
     }
+}
+
+Write-Host ''
+Write-Host 'Finished / Hoan tat. Check Activation in Settings / Kiem tra Kich hoat trong Cai dat.' -ForegroundColor Green
+if ($Host.Name -eq 'ConsoleHost') {
+    Read-Host 'Press Enter to close / Nhan Enter de dong'
 }

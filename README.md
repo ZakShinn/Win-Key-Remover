@@ -30,8 +30,30 @@ Script PowerShell dùng công cụ chính thức của Microsoft (`slmgr.vbs`, `
 | 5 | [Tham số `-Lang`](#vi-5) |
 | 6 | [Trong khi chạy: cảnh báo và menu](#vi-6) |
 | 7 | [Tùy chọn: cập nhật script trong file `.ps1`](#vi-7) |
+| 0 | [Chế độ debug (kiểm tra lỗi)](#vi-debug) |
 | ? | [Sự cố thường gặp](#vi-faq) |
 | — | [Lưu ý quan trọng](#vi-notes) · [Giấy phép](#vi-license) |
+
+<a id="vi-debug"></a>
+
+### Bước 0. Chế độ debug (kiểm tra lỗi, không gỡ key)
+
+Chạy **trước** khi dùng script chính nếu gặp lỗi. Script debug **không** gỡ key, chỉ kiểm tra môi trường và ghi log.
+
+```powershell
+cd "G:\Github\Win-Key-Remover"
+.\Win-Key-Remover-Debug.ps1
+```
+
+Hoặc double-click **`Run-Win-Key-Remover-Debug.cmd`** (có thêm thử tải từ GitHub).
+
+Tiếng Anh + thử mạng:
+
+```powershell
+.\Win-Key-Remover-Debug.ps1 -Lang en -DownloadTest
+```
+
+Log lưu tại `%TEMP%\Win-Key-Remover-debug-*.log`. **FAIL** = cần sửa (thường là chưa Admin); **WARN** = cảnh báo (ví dụ PowerShell 7, chưa cài Office).
 
 <a id="vi-1"></a>
 
@@ -156,7 +178,7 @@ Ví dụ (đường dẫn tùy máy bạn):
 
 ### Bước 7. Tùy chọn: cập nhật từ GitHub trong file script
 
-Khi chạy, script có thể hỏi có muốn tải bản mới từ GitHub trước khi tiếp tục (URL mặc định trỏ repo này).
+Khi chạy, script có thể hỏi có muốn tải bản mới từ GitHub trước khi tiếp tục. **Nhấn `N` (Enter)** nếu bạn đã có bản `D:\Win-Key-Remover` mới hơn GitHub. Bản script mới **kiểm tra cú pháp** sau khi tải; nếu GitHub chưa được push bản sửa lỗi, sẽ **không** chạy file lỗi mà tiếp tục bản local.
 
 <a id="vi-faq"></a>
 
@@ -208,8 +230,30 @@ PowerShell script that uses Microsoft’s official tools (`slmgr.vbs`, `ospp.vbs
 | 5 | [The `-Lang` parameter](#en-5) |
 | 6 | [While it runs: disclaimer and menu](#en-6) |
 | 7 | [Optional: self-update URL inside `.ps1`](#en-7) |
+| 0 | [Debug mode (diagnostics)](#en-debug) |
 | ? | [Troubleshooting](#en-faq) |
 | — | [Important notes](#en-notes) · [License](#en-license) |
+
+<a id="en-debug"></a>
+
+### Step 0. Debug mode (diagnostics, no key removal)
+
+Run **before** the main script if something fails. Debug mode **does not** remove keys; it checks your environment and writes a log.
+
+```powershell
+cd "C:\path\to\Win-Key-Remover"
+.\Win-Key-Remover-Debug.ps1
+```
+
+Or double-click **`Run-Win-Key-Remover-Debug.cmd`** (includes a GitHub download test).
+
+English + network test:
+
+```powershell
+.\Win-Key-Remover-Debug.ps1 -Lang en -DownloadTest
+```
+
+Log file: `%TEMP%\Win-Key-Remover-debug-*.log`. **FAIL** = must fix (often: not Administrator); **WARN** = notice (e.g. PowerShell 7, Office not found).
 
 <a id="en-1"></a>
 
@@ -334,7 +378,7 @@ Examples:
 
 ### Step 7. Optional: self-update inside the script
 
-The script may ask to download the newest copy from GitHub before continuing (default URL points to this repo).
+The script may ask to download the newest copy from GitHub. Press **`N`** if your local copy is already newer. After download, the script **validates syntax**; if GitHub is outdated, it **keeps your local copy** instead of running a broken file.
 
 <a id="en-faq"></a>
 

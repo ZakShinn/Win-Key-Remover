@@ -1,11 +1,13 @@
 @echo off
-:: Run Win-Key-Remover with Windows PowerShell 5.1 as Administrator
+cd /d "%~dp0"
 set "PS51=%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe"
 set "SCRIPT=%~dp0Win-Key-Remover.ps1"
 if not exist "%SCRIPT%" (
-    echo Win-Key-Remover.ps1 not found next to this file.
+    echo Win-Key-Remover.ps1 not found in: %~dp0
     pause
     exit /b 1
 )
-powershell -Command "Start-Process -FilePath '%PS51%' -ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-File','%SCRIPT%' -Verb RunAs"
-exit /b 0
+echo Starting Win-Key-Remover as Administrator...
+echo Thu muc: %~dp0
+powershell -NoProfile -ExecutionPolicy Bypass -Command "Start-Process -FilePath '%PS51%' -ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-NoExit','-File','%SCRIPT%' -WorkingDirectory '%~dp0' -Verb RunAs -Wait"
+exit /b %ERRORLEVEL%
